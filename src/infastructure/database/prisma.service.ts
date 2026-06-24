@@ -3,20 +3,39 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../../../generated/prisma/client.js';
 
+function createMariaDbAdapterConfig(databaseUrl: string) {
+  const url = new URL(databaseUrl);
+
+  if (url.protocol !== 'mysql:') {
+    throw new Error('DATABASE_URL must start with mysql://');
+  }
+
+  const database = url.pathname.replace('/', '');
+
+  if (!database) {
+    throw new Error('DATABASE_URL must include a database name');
+  }
+
+  return {
+    host: url.hostname,
+    port: url.port ? Number(url.port) : 3306,
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: decodeURIComponent(database),
+    connectionLimit: 5,
+    allowPublicKeyRetrieval: true,
+  };
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
   constructor(private readonly configService: ConfigService) {
-    const adapter = new PrismaMariaDb({
-      host: configService.getOrThrow<string>('DATABASE_HOST'),
-      port: Number(configService.getOrThrow<string>('DATABASE_PORT')),
-      user: configService.getOrThrow<string>('DATABASE_USER'),
-      password: configService.getOrThrow<string>('DATABASE_PASSWORD'),
-      database: configService.getOrThrow<string>('DATABASE_NAME'),
-      connectionLimit: 5,
-    });
+    const databaseUrl = configService.getOrThrow<string>('database.url');
+
+    const adapter = new PrismaMariaDb(createMariaDbAdapterConfig(databaseUrl));
 
     super({
       adapter,
