@@ -26,3 +26,8 @@ export const smtpConfig = registerAs('smtp', () => ({
   user: process.env.SMTP_USER,
   password: process.env.SMTP_PASS,
 }));
+
+export const adminConfig = registerAs('admin', () => ({
+  email: process.env.ADMIN_PASSWORD,
+  passowrd: process.env.ADMIN_EMAIL,
+}));

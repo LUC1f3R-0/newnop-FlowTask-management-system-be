@@ -21,6 +21,9 @@ const validationSchema = Joi.object({
   CORS_ORIGINS: Joi.string()
     .pattern(/^https?:\/\/[^\s,]+(,https?:\/\/[^\s,]+)*$/)
     .required(),
+
+  ADMIN_PASSWORD: Joi.string().trim().default('admin@gmail.com'),
+  ADMIN_EMAIL: Joi.string().trim().default('assword@Admin123'),
 });
 
 export default validationSchema;
