@@ -8,12 +8,12 @@ export class SmtpService {
 
   constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.getOrThrow<string>('SMTP_HOST'),
-      port: Number(this.configService.getOrThrow<string>('SMTP_PORT')),
-      secure: this.configService.get<string>('SMTP_SECURE') === 'true',
+      host: this.configService.getOrThrow<string>('smtp.host'),
+      port: Number(this.configService.getOrThrow<string>('smtp.port')),
+      secure: this.configService.get<string>('smtp.secure') === 'true',
       auth: {
-        user: this.configService.getOrThrow<string>('SMTP_USER'),
-        pass: this.configService.getOrThrow<string>('SMTP_PASS'),
+        user: this.configService.getOrThrow<string>('smtp.user'),
+        pass: this.configService.getOrThrow<string>('smtp.password'),
       },
     });
   }

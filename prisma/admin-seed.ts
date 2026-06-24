@@ -9,13 +9,13 @@ class UserSeeder {
 
   constructor() {
     const databaseUrl = process.env.DATABASE_URL;
-  
+
     if (!databaseUrl) {
       throw new Error('DATABASE_URL is missing');
     }
-  
+
     const url = new URL(databaseUrl);
-  
+
     const adapter = new PrismaMariaDb({
       host: url.hostname,
       port: Number(url.port || 3306),
@@ -24,7 +24,7 @@ class UserSeeder {
       database: url.pathname.replace('/', ''),
       connectionLimit: 5,
     });
-  
+
     this.prisma = new PrismaClient({ adapter });
     this.logger = new Logger('UserSeeder');
   }
