@@ -10,7 +10,7 @@ class DatabaseStatusService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-      this.logger.log('Database health check successful');
+      this.logger.log('Database connection success');
     } catch (error) {
       this.logger.error('Database health check failed', error);
     }
