@@ -15,6 +15,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiKeyGuard } from './common/guards/api-key.guard.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { SerializeInterceptor } from './common/interceptors/serialize.interceptor.js';
+import { UserModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SerializeInterceptor } from './common/interceptors/serialize.intercepto
     SmtpModule,
     DatabaseModule,
     AuthModule,
+    UserModule,
   ],
   providers: [
     CorsConfig,

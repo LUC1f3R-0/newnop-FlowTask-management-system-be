@@ -29,6 +29,8 @@ const validationSchema = Joi.object({
   ADMIN_EMAIL: Joi.string().trim().default('assword@Admin123'),
 
   X_API_KEY: Joi.string().trim().default('000000000000000000000000000'),
+  JWT_ACCESS_SECRET: Joi.string().trim().default('00000000000000000000'),
+  JWT_REFRESH_SECRET: Joi.string().trim().default('00000000000000000000'),
 });
 
 export default validationSchema;

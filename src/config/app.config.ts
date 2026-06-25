@@ -35,4 +35,6 @@ export const adminConfig = registerAs('admin', () => ({
 
 export const apiConfig = registerAs('api', () => ({
   xApiKey: process.env.X_API_KEY,
+  accessToken: process.env.JWT_ACCESS_SECRET,
+  refreshToken: process.env.JWT_REFRESH_SECRET,
 }));

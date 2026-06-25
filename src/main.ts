@@ -3,6 +3,7 @@ import { AppModule } from './app.module.js';
 import { ConfigService } from '@nestjs/config';
 import { CorsConfig } from './common/cors/cors.config.js';
 import { appValidationPipe } from './common/pipes/app-validation.pipe.js';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api/vi');
   app.enableShutdownHooks();
   app.useGlobalPipes(appValidationPipe);
+  app.use(cookieParser());
 
   const port = configService.get<number>('app.port') ?? 3000;
 

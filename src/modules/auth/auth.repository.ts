@@ -7,6 +7,13 @@ type CreateUserData = {
   password: string;
 };
 
+type CreateSessionData = {
+  uuid: string;
+  userId: bigint;
+  refreshTokenHash: string;
+  expiresAt: Date;
+};
+
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -17,6 +24,7 @@ export class AuthRepository {
         email,
       },
       select: {
+        id: true,
         uuid: true,
         name: true,
         email: true,
@@ -42,6 +50,21 @@ export class AuthRepository {
         role: true,
         createdAt: true,
         updatedAt: true,
+      },
+    });
+  }
+
+  createSession(data: CreateSessionData) {
+    return this.prisma.session.create({
+      data: {
+        uuid: data.uuid,
+        userId: data.userId,
+        refreshTokenHash: data.refreshTokenHash,
+        expiresAt: data.expiresAt,
+      },
+      select: {
+        uuid: true,
+        expiresAt: true,
       },
     });
   }
