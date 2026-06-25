@@ -18,10 +18,12 @@ model Users {
   role            Role      @default(USER)
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
-  password        String    @map("password")
+  password        String    @map("hashed_password")
   OTPHashed       String?   @map("hashed_otp")
   isEmailVerified Boolean   @default(false) @map("is_email_verified")
   OTPExpiredAt    DateTime? @map("otp_expires_at")
+
+  sessions Session[]
 
   @@map("users")
 }
@@ -29,4 +31,21 @@ model Users {
 enum Role {
   USER
   ADMIN
+}
+
+model Session {
+  id               BigInt    @id @default(autoincrement())
+  uuid             String    @unique @default(uuid()) @db.Char(36)
+  userId           BigInt    @map("user_id")
+  refreshTokenHash String    @map("hashed_refresh_token") @db.VarChar(255)
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
