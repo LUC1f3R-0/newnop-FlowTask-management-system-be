@@ -1,45 +1,32 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider               = "prisma-client"
   output                 = "../generated/prisma"
-  // shadowDatabaseUrl      = env("SHADOW_DATABASE_URL")
-  moduleFormat           = "esm"
   generatedFileExtension = "ts"
   importFileExtension    = "js"
+  moduleFormat           = "esm"
 }
 
 datasource db {
   provider = "mysql"
 }
 
-enum Role{
-USER
-ADMIN
-}
-
-model Users{
-  id            BigInt   @id @default(autoincrement())
-  uuid          String   @unique @db.Char(36)
-  name          String   @db.VarChar(100)
-  email         String   @unique @db.VarChar(255)
-  password      String   @map("password")
-  role          Role     @default(USER)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+model Users {
+  id              BigInt    @id @default(autoincrement())
+  uuid            String    @unique @default(uuid()) @db.Char(36)
+  name            String    @db.VarChar(100)
+  email           String    @unique @db.VarChar(255)
+  role            Role      @default(USER)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  password        String    @map("password")
+  OTPHashed       String?   @map("hashed_otp")
+  isEmailVerified Boolean   @default(false) @map("is_email_verified")
+  OTPExpiredAt    DateTime? @map("otp_expires_at")
 
   @@map("users")
 }
 
-// tasks
-// {
-
-// }
-
-// user_sessions
-// {
-
-// }
+enum Role {
+  USER
+  ADMIN
+}

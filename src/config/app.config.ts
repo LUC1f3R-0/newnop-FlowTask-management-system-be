@@ -6,6 +6,7 @@ export const appConfig = registerAs('app', () => ({
     origins:
       process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim()) ?? [],
   },
+  nodeEnv: process.env.NODE_ENV,
 }));
 
 export const dataConfig = registerAs('database', () => ({
@@ -30,4 +31,8 @@ export const smtpConfig = registerAs('smtp', () => ({
 export const adminConfig = registerAs('admin', () => ({
   email: process.env.ADMIN_PASSWORD,
   passowrd: process.env.ADMIN_EMAIL,
+}));
+
+export const apiConfig = registerAs('api', () => ({
+  xApiKey: process.env.X_API_KEY,
 }));

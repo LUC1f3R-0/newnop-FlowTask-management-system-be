@@ -2,6 +2,9 @@ import Joi from 'joi';
 
 const validationSchema = Joi.object({
   PORT: Joi.number().port().default(3000),
+  NODE_ENV: Joi.string()
+    .valid('development', 'production')
+    .default('production'),
 
   // DATABASE_URL: Joi.string().trim().required(),
   DATABASE_HOST: Joi.string().trim().optional(),
@@ -24,6 +27,8 @@ const validationSchema = Joi.object({
 
   ADMIN_PASSWORD: Joi.string().trim().default('admin@gmail.com'),
   ADMIN_EMAIL: Joi.string().trim().default('assword@Admin123'),
+
+  X_API_KEY: Joi.string().trim().default('000000000000000000000000000'),
 });
 
 export default validationSchema;

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ConfigService } from '@nestjs/config';
 import { CorsConfig } from './common/cors/cors.config.js';
+import { appValidationPipe } from './common/pipes/app-validation.pipe.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,6 +12,7 @@ async function bootstrap() {
   app.enableCors(corsConfig.options);
   app.setGlobalPrefix('api/vi');
   app.enableShutdownHooks();
+  app.useGlobalPipes(appValidationPipe);
 
   const port = configService.get<number>('app.port') ?? 3000;
 
