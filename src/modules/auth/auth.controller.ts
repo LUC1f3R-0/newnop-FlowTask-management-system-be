@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { LoginDto, RegisterDto } from './dto/auth.dto.js';
 import { AuthService } from './auth.service.js';
 import { ResponseMessage } from '../../common/decorators/response-message.decorator.js';
@@ -37,6 +37,21 @@ export class AuthController {
     };
   }
 
+  @Post('refresh')
+  @ResponseMessage('Access token refreshed successfully')
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.refreshAccessToken(request);
+
+    this.setAccessTokenCookie(response, result.accessToken);
+
+    return {
+      user: result.user,
+    };
+  }
+
   private setAuthCookies(
     response: Response,
     tokens: {
@@ -45,16 +60,10 @@ export class AuthController {
       refreshTokenExpiresAt: Date;
     },
   ) {
+    this.setAccessTokenCookie(response, tokens.accessToken);
+
     const isProduction =
       this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
-
-    response.cookie('accessToken', tokens.accessToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
 
     response.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
@@ -62,6 +71,19 @@ export class AuthController {
       sameSite: 'lax',
       expires: tokens.refreshTokenExpiresAt,
       path: '/api/v1/auth/refresh',
+    });
+  }
+
+  private setAccessTokenCookie(response: Response, accessToken: string) {
+    const isProduction =
+      this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
+
+    response.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+      path: '/',
     });
   }
 }

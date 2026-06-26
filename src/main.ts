@@ -11,7 +11,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   app.enableCors(corsConfig.options);
-  app.setGlobalPrefix('api/vi');
+  app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
   app.useGlobalPipes(appValidationPipe);
   app.use(cookieParser());

@@ -10,6 +10,7 @@ import { Role } from '../../../generated/prisma/enums.js';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
 
 const SALT_ROUNDS = 12;
 
@@ -23,6 +24,12 @@ type PublicUserInput = {
   role: Role;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type RefreshTokenPayload = {
+  sub: string;
+  sid: string;
+  type: 'refresh';
 };
 
 @Injectable()
@@ -101,6 +108,76 @@ export class AuthService {
     };
   }
 
+  async refreshAccessToken(request: Request) {
+    const refreshToken = request.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is missing');
+    }
+
+    const payload = await this.verifyRefreshToken(refreshToken);
+
+    const session = await this.authRepository.findActiveSessionByUuid(
+      payload.sid,
+    );
+
+    if (!session) {
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    if (session.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh session expired');
+    }
+
+    if (session.user.uuid !== payload.sub) {
+      throw new UnauthorizedException('Invalid refresh token owner');
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      session.refreshTokenHash,
+    );
+
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const accessToken = await this.createAccessToken({
+      userUuid: session.user.uuid,
+      role: session.user.role,
+    });
+
+    return {
+      accessToken,
+      user: this.toPublicUser(session.user),
+    };
+  }
+
+  private async verifyRefreshToken(refreshToken: string) {
+    let payload: RefreshTokenPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+        refreshToken,
+        {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        },
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    if (!payload.sub || !payload.sid) {
+      throw new UnauthorizedException('Invalid refresh token payload');
+    }
+
+    return payload;
+  }
+
   private async createAccessToken(payload: { userUuid: string; role: Role }) {
     return this.jwtService.signAsync(
       {
@@ -109,7 +186,7 @@ export class AuthService {
         type: 'access',
       },
       {
-        secret: this.configService.getOrThrow<string>('api.accessToken'),
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: ACCESS_TOKEN_EXPIRES_IN,
       },
     );

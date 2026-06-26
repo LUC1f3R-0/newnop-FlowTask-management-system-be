@@ -16,6 +16,8 @@ import { ApiKeyGuard } from './common/guards/api-key.guard.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { SerializeInterceptor } from './common/interceptors/serialize.interceptor.js';
 import { UserModule } from './modules/users/users.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { TaskModule } from './modules/tasks/tasks.module.js';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { UserModule } from './modules/users/users.module.js';
     DatabaseModule,
     AuthModule,
     UserModule,
+    DashboardModule,
+    TaskModule,
   ],
   providers: [
     CorsConfig,

@@ -84,4 +84,28 @@ export class AuthRepository {
       },
     });
   }
+
+  findActiveSessionByUuid(uuid: string) {
+    return this.prisma.session.findFirst({
+      where: {
+        uuid,
+        revokedAt: null,
+      },
+      select: {
+        uuid: true,
+        refreshTokenHash: true,
+        expiresAt: true,
+        user: {
+          select: {
+            uuid: true,
+            name: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+  }
 }
