@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
+import { buildVerificationOtpMail } from './mails/verification-otp.mail.js';
 
 @Injectable()
 export class SmtpService {
@@ -30,11 +31,25 @@ export class SmtpService {
     text?: string;
   }) {
     return this.transporter.sendMail({
-      from: this.configService.getOrThrow<string>('SMTP_FROM'),
+      from: this.configService.getOrThrow<string>('smtp.user'),
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
+    });
+  }
+
+  async sendVerificationOtp(options: { to: string; otp: string }) {
+    const mail = buildVerificationOtpMail({
+      otp: options.otp,
+      expiresInMinutes: 10,
+    });
+
+    return this.sendMail({
+      to: options.to,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
     });
   }
 }

@@ -1,27 +1,37 @@
 import * as bcrypt from 'bcrypt';
-import { LoginDto, RegisterDto } from './dto/auth.dto.js';
 import {
+  LoginDto,
+  RegisterDto,
+  ResendEmailVerificationDto,
+  VerifyDto,
+} from './dto/auth.dto.js';
+import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthRepository } from './auth.repository.js';
 import { Role } from '../../../generated/prisma/enums.js';
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import { SmtpService } from '../../infastructure/smtp/smtp.service.js';
 
 const SALT_ROUNDS = 12;
 
 const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_EXPIRES_DAYS = 7;
+const EMAIL_OTP_EXPIRES_MINUTES = 10;
 
 type PublicUserInput = {
   uuid: string;
   name: string;
   email: string;
   role: Role;
+  isEmailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -38,21 +48,47 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly smtpService: SmtpService,
   ) {}
 
   async register(dto: RegisterDto) {
-    const existingUser = await this.authRepository.findUserByEmail(dto.email);
+    const email = dto.email.toLowerCase().trim();
 
-    if (existingUser) {
+    const existingUser = await this.authRepository.findUserByEmail(email);
+
+    if (existingUser?.isEmailVerified) {
       throw new ConflictException('Email already exists');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
-    const user = await this.authRepository.createUser({
-      name: dto.fullName,
-      email: dto.email,
-      password: passwordHash,
+    const otp = this.generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    const otpExpiresAt = this.getOtpExpiryDate();
+
+    let user: PublicUserInput;
+
+    if (existingUser && !existingUser.isEmailVerified) {
+      user = await this.authRepository.updatePendingRegistration({
+        userId: existingUser.id,
+        name: dto.fullName,
+        password: passwordHash,
+        otpHash,
+        otpExpiresAt,
+      });
+    } else {
+      user = await this.authRepository.createUser({
+        name: dto.fullName,
+        email,
+        password: passwordHash,
+        otpHash,
+        otpExpiresAt,
+      });
+    }
+
+    await this.smtpService.sendVerificationOtp({
+      to: email,
+      otp,
     });
 
     return {
@@ -61,7 +97,9 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const existingUser = await this.authRepository.findUserByEmail(dto.email);
+    const email = dto.email.toLowerCase().trim();
+
+    const existingUser = await this.authRepository.findUserByEmail(email);
 
     if (!existingUser) {
       throw new UnauthorizedException('Invalid email or password');
@@ -74,6 +112,12 @@ export class AuthService {
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!existingUser.isEmailVerified) {
+      throw new ForbiddenException(
+        'Please verify your email before logging in',
+      );
     }
 
     const sessionUuid = randomUUID();
@@ -153,6 +197,73 @@ export class AuthService {
     };
   }
 
+  async verifyEmail(dto: VerifyDto) {
+    const email = dto.email.toLowerCase().trim();
+
+    const user = await this.authRepository.findUserByEmail(email);
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification request');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    if (!user.OTPHashed || !user.OTPExpiredAt) {
+      throw new BadRequestException('No active OTP found');
+    }
+
+    if (user.OTPExpiredAt < new Date()) {
+      throw new BadRequestException('OTP expired. Please request a new OTP');
+    }
+
+    const isOtpValid = await bcrypt.compare(dto.otp, user.OTPHashed);
+
+    if (!isOtpValid) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const verifiedUser = await this.authRepository.markEmailAsVerified(user.id);
+
+    return {
+      user: this.toPublicUser(verifiedUser),
+    };
+  }
+
+  async resendVerificationOtp(dto: ResendEmailVerificationDto) {
+    const email = dto.email.toLowerCase().trim();
+
+    const user = await this.authRepository.findUserByEmail(email);
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification request');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    const otp = this.generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    const otpExpiresAt = this.getOtpExpiryDate();
+
+    await this.authRepository.updateEmailVerificationOtp({
+      userId: user.id,
+      otpHash,
+      otpExpiresAt,
+    });
+
+    await this.smtpService.sendVerificationOtp({
+      to: email,
+      otp,
+    });
+
+    return {
+      email,
+    };
+  }
+
   private async verifyRefreshToken(refreshToken: string) {
     let payload: RefreshTokenPayload;
 
@@ -221,8 +332,19 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  private generateOtp() {
+    return randomInt(10000, 100000).toString();
+  }
+
+  private getOtpExpiryDate() {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + EMAIL_OTP_EXPIRES_MINUTES);
+    return expiresAt;
   }
 }

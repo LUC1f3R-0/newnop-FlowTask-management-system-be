@@ -1,5 +1,3 @@
-// src/common/guards/api-key.guard.ts
-
 import {
   CanActivate,
   ExecutionContext,

@@ -1,6 +1,11 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { LoginDto, RegisterDto } from './dto/auth.dto.js';
+import {
+  LoginDto,
+  RegisterDto,
+  ResendEmailVerificationDto,
+  VerifyDto,
+} from './dto/auth.dto.js';
 import { AuthService } from './auth.service.js';
 import { ResponseMessage } from '../../common/decorators/response-message.decorator.js';
 import { ConfigService } from '@nestjs/config';
@@ -13,7 +18,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
-  @ResponseMessage('User registered successfully')
+  @ResponseMessage('User registered successfully. Verification OTP sent.')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -50,6 +55,18 @@ export class AuthController {
     return {
       user: result.user,
     };
+  }
+
+  @Post('verify-email')
+  @ResponseMessage('Email verified successfully')
+  async verifyEmail(@Body() dto: VerifyDto) {
+    return this.authService.verifyEmail(dto);
+  }
+
+  @Post('resend-verification-otp')
+  @ResponseMessage('Verification OTP sent successfully')
+  async resendVerificationOtp(@Body() dto: ResendEmailVerificationDto) {
+    return this.authService.resendVerificationOtp(dto);
   }
 
   private setAuthCookies(

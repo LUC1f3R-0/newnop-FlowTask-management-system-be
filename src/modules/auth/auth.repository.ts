@@ -5,6 +5,8 @@ type CreateUserData = {
   name: string;
   email: string;
   password: string;
+  otpHash: string;
+  otpExpiresAt: Date;
 };
 
 type CreateSessionData = {
@@ -30,6 +32,9 @@ export class AuthRepository {
         email: true,
         password: true,
         role: true,
+        OTPHashed: true,
+        OTPExpiredAt: true,
+        isEmailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -42,12 +47,88 @@ export class AuthRepository {
         name: data.name,
         email: data.email,
         password: data.password,
+        OTPHashed: data.otpHash,
+        OTPExpiredAt: data.otpExpiresAt,
+        isEmailVerified: false,
       },
       select: {
         uuid: true,
         name: true,
         email: true,
         role: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  updatePendingRegistration(data: {
+    userId: bigint;
+    name: string;
+    password: string;
+    otpHash: string;
+    otpExpiresAt: Date;
+  }) {
+    return this.prisma.users.update({
+      where: {
+        id: data.userId,
+      },
+      data: {
+        name: data.name,
+        password: data.password,
+        OTPHashed: data.otpHash,
+        OTPExpiredAt: data.otpExpiresAt,
+        isEmailVerified: false,
+      },
+      select: {
+        uuid: true,
+        name: true,
+        email: true,
+        role: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  updateEmailVerificationOtp(data: {
+    userId: bigint;
+    otpHash: string;
+    otpExpiresAt: Date;
+  }) {
+    return this.prisma.users.update({
+      where: {
+        id: data.userId,
+      },
+      data: {
+        OTPHashed: data.otpHash,
+        OTPExpiredAt: data.otpExpiresAt,
+      },
+      select: {
+        uuid: true,
+        email: true,
+      },
+    });
+  }
+
+  markEmailAsVerified(userId: bigint) {
+    return this.prisma.users.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isEmailVerified: true,
+        OTPHashed: null,
+        OTPExpiredAt: null,
+      },
+      select: {
+        uuid: true,
+        name: true,
+        email: true,
+        role: true,
+        isEmailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -79,6 +160,7 @@ export class AuthRepository {
         name: true,
         email: true,
         role: true,
+        isEmailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -101,6 +183,7 @@ export class AuthRepository {
             name: true,
             email: true,
             role: true,
+            isEmailVerified: true,
             createdAt: true,
             updatedAt: true,
           },

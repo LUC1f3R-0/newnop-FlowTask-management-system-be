@@ -56,3 +56,24 @@ export class LoginDto {
   @MaxLength(72, { message: 'Password must not exceed 72 characters' })
   password!: string;
 }
+
+export class VerifyDto {
+  @IsEmail({}, { message: 'Email must be a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  @MaxLength(255, { message: 'Email must not exceed 255 characters' })
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'OTP is required' })
+  @Matches(/^\d{5}$/, {
+    message: 'OTP must be a 5-digit number',
+  })
+  otp!: string;
+}
+
+export class ResendEmailVerificationDto {
+  @IsEmail({}, { message: 'Email must be a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  @MaxLength(255, { message: 'Email must not exceed 255 characters' })
+  email!: string;
+}
