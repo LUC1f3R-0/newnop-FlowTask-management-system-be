@@ -135,6 +135,18 @@ export class AuthRepository {
     });
   }
 
+  revokeSessionByUuid(uuid: string) {
+    return this.prisma.session.updateMany({
+      where: {
+        uuid,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
+
   createSession(data: CreateSessionData) {
     return this.prisma.session.create({
       data: {

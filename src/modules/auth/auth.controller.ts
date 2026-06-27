@@ -42,6 +42,19 @@ export class AuthController {
     };
   }
 
+  @Post('logout')
+  @ResponseMessage('Logout successful')
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.logout(request);
+
+    this.clearAuthCookies(response);
+
+    return null;
+  }
+
   @Post('refresh')
   @ResponseMessage('Access token refreshed successfully')
   async refresh(
@@ -101,6 +114,25 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000,
       path: '/',
+    });
+  }
+
+  private clearAuthCookies(response: Response) {
+    const isProduction =
+      this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
+
+    response.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    response.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/api/v1/auth',
     });
   }
 }

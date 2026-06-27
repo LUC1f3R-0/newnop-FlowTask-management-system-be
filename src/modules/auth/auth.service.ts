@@ -115,9 +115,14 @@ export class AuthService {
     }
 
     if (!existingUser.isEmailVerified) {
-      throw new ForbiddenException(
-        'Please verify your email before logging in',
-      );
+      await this.sendFreshVerificationOtp(existingUser.id, existingUser.email);
+
+      throw new ForbiddenException({
+        code: 'EMAIL_NOT_VERIFIED',
+        message:
+          'Please verify your email before logging in. A new OTP has been sent.',
+        email: existingUser.email,
+      });
     }
 
     const sessionUuid = randomUUID();
@@ -150,6 +155,22 @@ export class AuthService {
         refreshTokenExpiresAt,
       },
     };
+  }
+
+  async logout(request: Request) {
+    const refreshToken = request.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return;
+    }
+
+    try {
+      const payload = await this.verifyRefreshToken(refreshToken);
+
+      await this.authRepository.revokeSessionByUuid(payload.sid);
+    } catch {
+      return;
+    }
   }
 
   async refreshAccessToken(request: Request) {
@@ -346,5 +367,22 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + EMAIL_OTP_EXPIRES_MINUTES);
     return expiresAt;
+  }
+
+  private async sendFreshVerificationOtp(userId: bigint, email: string) {
+    const otp = this.generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    const otpExpiresAt = this.getOtpExpiryDate();
+
+    await this.authRepository.updateEmailVerificationOtp({
+      userId,
+      otpHash,
+      otpExpiresAt,
+    });
+
+    await this.smtpService.sendVerificationOtp({
+      to: email,
+      otp,
+    });
   }
 }
