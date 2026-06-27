@@ -12,6 +12,22 @@ type CreateTaskData = {
   assignedToId?: bigint | null;
 };
 
+type UpdateTaskData = {
+  title?: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  status?: TaskStatus;
+  dueDate?: Date | null;
+  assignedToId?: bigint | null;
+};
+
+type FindTasksParams = {
+  page: number;
+  limit: number;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+};
+
 @Injectable()
 class TasksRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -48,11 +64,13 @@ class TasksRepository {
     return this.toTaskResponse(task);
   }
 
-  async findAll(params: { page: number; limit: number }) {
+  async findAll(params: FindTasksParams) {
     const skip = (params.page - 1) * params.limit;
 
     const where = {
       deletedAt: null,
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.priority ? { priority: params.priority } : {}),
     };
 
     const [tasks, total] = await Promise.all([
@@ -82,15 +100,17 @@ class TasksRepository {
     };
   }
 
-  async findVisibleToUser(params: {
-    userId: bigint;
-    page: number;
-    limit: number;
-  }) {
+  async findVisibleToUser(
+    params: FindTasksParams & {
+      userId: bigint;
+    },
+  ) {
     const skip = (params.page - 1) * params.limit;
 
     const where = {
       deletedAt: null,
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.priority ? { priority: params.priority } : {}),
       OR: [
         {
           createdById: params.userId,
@@ -126,6 +146,100 @@ class TasksRepository {
         totalPages: Math.ceil(total / params.limit),
       },
     };
+  }
+
+  async findActiveTaskByUuid(uuid: string) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        uuid,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        uuid: true,
+        createdById: true,
+        assignedToId: true,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return task;
+  }
+
+  async findVisibleTaskByUuid(params: { uuid: string; userId: bigint }) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        uuid: params.uuid,
+        deletedAt: null,
+        OR: [{ createdById: params.userId }, { assignedToId: params.userId }],
+      },
+      select: {
+        id: true,
+        uuid: true,
+        createdById: true,
+        assignedToId: true,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return task;
+  }
+
+  async updateTaskByUuid(uuid: string, data: UpdateTaskData) {
+    const task = await this.prisma.task.update({
+      where: {
+        uuid,
+      },
+      data: {
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
+        ...(data.priority !== undefined ? { priority: data.priority } : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.dueDate !== undefined ? { dueDate: data.dueDate } : {}),
+        ...(data.assignedToId !== undefined
+          ? { assignedToId: data.assignedToId }
+          : {}),
+      },
+      select: this.taskSelect(),
+    });
+
+    return this.toTaskResponse(task);
+  }
+
+  async softDeleteTaskByUuid(uuid: string) {
+    const existingTask = await this.prisma.task.findFirst({
+      where: {
+        uuid,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const task = await this.prisma.task.update({
+      where: {
+        uuid,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+      select: this.taskSelect(),
+    });
+
+    return this.toTaskResponse(task);
   }
 
   private taskSelect() {

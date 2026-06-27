@@ -59,19 +59,19 @@ export class AuthService {
 
   async me(request: Request) {
     const accessToken = this.getCookie(request, 'accessToken');
-  
+
     if (!accessToken) {
       throw new UnauthorizedException('Access token is missing');
     }
-  
+
     const payload = await this.verifyAccessToken(accessToken);
-  
+
     const user = await this.authRepository.findUserByUuid(payload.sub);
-  
+
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-  
+
     return {
       user: this.toPublicUser(user),
     };

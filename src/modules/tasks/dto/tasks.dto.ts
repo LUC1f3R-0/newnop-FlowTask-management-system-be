@@ -43,3 +43,35 @@ export class CreateTaskDto {
   @IsUUID('4', { message: 'Assigned user id must be a valid UUID' })
   assignedToId?: string;
 }
+
+export class UpdateTaskDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'Title cannot be empty' })
+  @MaxLength(255, { message: 'Title must not exceed 255 characters' })
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(TaskPriority, {
+    message: 'Priority must be LOW, MEDIUM, or HIGH',
+  })
+  priority?: TaskPriority;
+
+  @IsOptional()
+  @IsEnum(TaskStatus, {
+    message: 'Status must be TODO, IN_PROGRESS, or COMPLETED',
+  })
+  status?: TaskStatus;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Due date must be a valid date string' })
+  dueDate?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Assigned user id must be a valid UUID' })
+  assignedToId?: string;
+}
