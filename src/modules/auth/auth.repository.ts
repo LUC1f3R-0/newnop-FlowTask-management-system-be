@@ -147,6 +147,18 @@ export class AuthRepository {
     });
   }
 
+  revokeAllSessionsByUserId(userId: bigint) {
+    return this.prisma.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
+
   createSession(data: CreateSessionData) {
     return this.prisma.session.create({
       data: {
@@ -158,6 +170,52 @@ export class AuthRepository {
       select: {
         uuid: true,
         expiresAt: true,
+      },
+    });
+  }
+
+  findUserIdByUuid(uuid: string) {
+    return this.prisma.users.findUnique({
+      where: {
+        uuid,
+      },
+      select: {
+        id: true,
+        uuid: true,
+      },
+    });
+  }
+
+  deleteSessionByUuid(uuid: string) {
+    return this.prisma.session.deleteMany({
+      where: {
+        uuid,
+      },
+    });
+  }
+
+  findActiveSessionByUuid(uuid: string) {
+    return this.prisma.session.findFirst({
+      where: {
+        uuid,
+        revokedAt: null,
+      },
+      select: {
+        uuid: true,
+        refreshTokenHash: true,
+        expiresAt: true,
+        user: {
+          select: {
+            id: true,
+            uuid: true,
+            name: true,
+            email: true,
+            role: true,
+            isEmailVerified: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
   }
@@ -175,31 +233,6 @@ export class AuthRepository {
         isEmailVerified: true,
         createdAt: true,
         updatedAt: true,
-      },
-    });
-  }
-
-  findActiveSessionByUuid(uuid: string) {
-    return this.prisma.session.findFirst({
-      where: {
-        uuid,
-        revokedAt: null,
-      },
-      select: {
-        uuid: true,
-        refreshTokenHash: true,
-        expiresAt: true,
-        user: {
-          select: {
-            uuid: true,
-            name: true,
-            email: true,
-            role: true,
-            isEmailVerified: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
       },
     });
   }

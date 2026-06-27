@@ -42,6 +42,12 @@ type RefreshTokenPayload = {
   type: 'refresh';
 };
 
+type AccessTokenPayload = {
+  sub: string;
+  role: Role;
+  type: 'access';
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -50,6 +56,26 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly smtpService: SmtpService,
   ) {}
+
+  async me(request: Request) {
+    const accessToken = this.getCookie(request, 'accessToken');
+  
+    if (!accessToken) {
+      throw new UnauthorizedException('Access token is missing');
+    }
+  
+    const payload = await this.verifyAccessToken(accessToken);
+  
+    const user = await this.authRepository.findUserByUuid(payload.sub);
+  
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+  
+    return {
+      user: this.toPublicUser(user),
+    };
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase().trim();
@@ -158,7 +184,7 @@ export class AuthService {
   }
 
   async logout(request: Request) {
-    const refreshToken = request.cookies?.refreshToken;
+    const refreshToken = this.getCookie(request, 'refreshToken');
 
     if (!refreshToken) {
       return;
@@ -167,11 +193,57 @@ export class AuthService {
     try {
       const payload = await this.verifyRefreshToken(refreshToken);
 
-      await this.authRepository.revokeSessionByUuid(payload.sid);
+      const session = await this.authRepository.findActiveSessionByUuid(
+        payload.sid,
+      );
+
+      if (!session) {
+        return;
+      }
+
+      if (session.user.uuid !== payload.sub) {
+        return;
+      }
+
+      const isRefreshTokenValid = await bcrypt.compare(
+        refreshToken,
+        session.refreshTokenHash,
+      );
+
+      if (!isRefreshTokenValid) {
+        return;
+      }
+
+      await this.authRepository.deleteSessionByUuid(payload.sid);
     } catch {
       return;
     }
   }
+
+  // private async verifyAccessToken(accessToken: string) {
+  //   let payload: AccessTokenPayload;
+
+  //   try {
+  //     payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
+  //       accessToken,
+  //       {
+  //         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+  //       },
+  //     );
+  //   } catch {
+  //     throw new UnauthorizedException('Invalid or expired access token');
+  //   }
+
+  //   if (payload.type !== 'access') {
+  //     throw new UnauthorizedException('Invalid token type');
+  //   }
+
+  //   if (!payload.sub || !payload.role) {
+  //     throw new UnauthorizedException('Invalid access token payload');
+  //   }
+
+  //   return payload;
+  // }
 
   async refreshAccessToken(request: Request) {
     const refreshToken = request.cookies?.refreshToken;
@@ -283,6 +355,43 @@ export class AuthService {
     return {
       email,
     };
+  }
+
+  private async verifyAccessToken(accessToken: string) {
+    let payload: AccessTokenPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
+        accessToken,
+        {
+          secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        },
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid or expired access token');
+    }
+
+    if (payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    if (!payload.sub || !payload.role) {
+      throw new UnauthorizedException('Invalid access token payload');
+    }
+
+    return payload;
+  }
+
+  private getCookie(request: Request, name: string): string | undefined {
+    const cookies = request.cookies as Record<string, unknown> | undefined;
+
+    const value = cookies?.[name];
+
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    return value;
   }
 
   private async verifyRefreshToken(refreshToken: string) {

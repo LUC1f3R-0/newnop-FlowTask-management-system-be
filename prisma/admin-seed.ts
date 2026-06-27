@@ -45,25 +45,32 @@ class UserSeeder {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    await this.prisma.users.upsert({
-      where: { uuid },
-      update: {
-        name: 'admin',
-        email,
-        password: hashedPassword,
-        role: Role.ADMIN,
-      },
-      create: {
-        uuid,
-        name: 'admin',
-        email,
-        password: hashedPassword,
-        role: Role.ADMIN,
-      },
+    const user = await this.prisma.users.findUnique({
+      where: { email },
     });
-
-    this.logger.log('Admin user created/updated');
-    this.logger.log(`admin email: ${email}`);
+    if (user != null) {
+      this.logger.error(`there is a person with ${user.email}`);
+      this.logger.warn('change the email in the environment variable');
+    } else {
+      await this.prisma.users.upsert({
+        where: { uuid },
+        update: {
+          name: 'admin',
+          email,
+          password: hashedPassword,
+          role: Role.ADMIN,
+        },
+        create: {
+          uuid,
+          name: 'admin',
+          email,
+          password: hashedPassword,
+          role: Role.ADMIN,
+        },
+      });
+      this.logger.log('Admin user created/updated');
+      this.logger.log(`admin email: ${email}`);
+    }
   }
 
   async run() {

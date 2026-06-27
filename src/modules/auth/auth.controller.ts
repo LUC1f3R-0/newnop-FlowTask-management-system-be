@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
   LoginDto,
@@ -16,6 +16,12 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Get('me')
+  @ResponseMessage('Authenticated user fetched successfully')
+  async me(@Req() request: Request) {
+    return this.authService.me(request);
+  }
 
   @Post('register')
   @ResponseMessage('User registered successfully. Verification OTP sent.')
@@ -100,7 +106,7 @@ export class AuthController {
       secure: isProduction,
       sameSite: 'lax',
       expires: tokens.refreshTokenExpiresAt,
-      path: '/api/v1/auth/refresh',
+      path: '/api/v1/auth',
     });
   }
 
