@@ -255,4 +255,4 @@ jobs:
       - name: Test Lambda health endpoint
         run: |
           sleep 10
-          curl -i "${FUNCTION_URL}api/health" || true
+          curl -i "${FUNCTION_URL}api/v1/health" || true
