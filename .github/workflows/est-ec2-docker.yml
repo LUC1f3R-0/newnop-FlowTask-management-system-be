@@ -1,4 +1,4 @@
-name: Deploy CI Docker Test to Lambda
+name: Deploy FlowTask Backend to Lambda
 
 on:
   push:
@@ -7,10 +7,10 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: flowtask-ci-docker-test-lambda
-  LAMBDA_FUNCTION_NAME: flowtask-ci-docker-test-lambda
-  DOCKERFILE_PATH: ./ci-docker-test/Dockerfile.lambda
-  BUILD_CONTEXT: ./ci-docker-test
+  ECR_REPOSITORY: newnop-flowtask-backend-lambda
+  LAMBDA_FUNCTION_NAME: newnop-flowtask-backend-lambda
+  DOCKERFILE_PATH: ./Dockerfile.lambda
+  BUILD_CONTEXT: .
 
 jobs:
   deploy:
@@ -20,18 +20,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Verify test project files
+      - name: Verify backend project files
         run: |
           pwd
           ls -la
 
-          echo "Files inside ci-docker-test:"
-          find ./ci-docker-test -maxdepth 3 -type f | sort
+          test -f ./Dockerfile.lambda
+          test -f ./package.json
+          test -f ./package-lock.json
+          test -f ./tsconfig.json
+          test -f ./tsconfig.build.json
+          test -f ./nest-cli.json
+          test -f ./prisma/schema.prisma
+          test -f ./prisma.config.ts
+          test -f ./src/main.ts
 
-          test -d ./ci-docker-test
-          test -f ./ci-docker-test/Dockerfile.lambda
-          test -f ./ci-docker-test/package.json
-          test -f ./ci-docker-test/tsconfig.json
+          echo "Backend files verified"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -74,6 +78,7 @@ jobs:
       - name: Build Lambda image
         run: |
           docker build \
+            --platform linux/amd64 \
             -f "${{ env.DOCKERFILE_PATH }}" \
             -t "$IMAGE_URI" \
             "${{ env.BUILD_CONTEXT }}"
@@ -96,6 +101,7 @@ jobs:
               --role "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" \
               --timeout 30 \
               --memory-size 1024 \
+              --architectures x86_64 \
               --region "${{ env.AWS_REGION }}"
           fi
 
@@ -118,20 +124,50 @@ jobs:
             --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
             --region "${{ env.AWS_REGION }}"
 
+      - name: Build Lambda environment file
+        run: |
+          jq -n \
+            --arg NODE_ENV "production" \
+            --arg PORT "3000" \
+            --arg APP_PORT "3000" \
+            --arg AWS_LWA_PORT "3000" \
+            --arg DATABASE_URL "${{ secrets.DATABASE_URL }}" \
+            --arg DB_SSL "${{ secrets.DB_SSL }}" \
+            --arg DB_LOGGING "${{ secrets.DB_LOGGING }}" \
+            --arg CORS_ORIGINS "${{ secrets.CORS_ORIGINS }}" \
+            --arg X_API_KEY "${{ secrets.X_API_KEY }}" \
+            --arg JWT_ACCESS_SECRET "${{ secrets.JWT_ACCESS_SECRET }}" \
+            --arg JWT_REFRESH_SECRET "${{ secrets.JWT_REFRESH_SECRET }}" \
+            --arg SMTP_HOST "${{ secrets.SMTP_HOST }}" \
+            --arg SMTP_PORT "${{ secrets.SMTP_PORT }}" \
+            --arg SMTP_SECURE "${{ secrets.SMTP_SECURE }}" \
+            --arg SMTP_USER "${{ secrets.SMTP_USER }}" \
+            --arg SMTP_PASS "${{ secrets.SMTP_PASS }}" \
+            '{
+              Variables: {
+                NODE_ENV: $NODE_ENV,
+                PORT: $PORT,
+                APP_PORT: $APP_PORT,
+                AWS_LWA_PORT: $AWS_LWA_PORT,
+                DATABASE_URL: $DATABASE_URL,
+                DB_SSL: $DB_SSL,
+                DB_LOGGING: $DB_LOGGING,
+                CORS_ORIGINS: $CORS_ORIGINS,
+                X_API_KEY: $X_API_KEY,
+                JWT_ACCESS_SECRET: $JWT_ACCESS_SECRET,
+                JWT_REFRESH_SECRET: $JWT_REFRESH_SECRET,
+                SMTP_HOST: $SMTP_HOST,
+                SMTP_PORT: $SMTP_PORT,
+                SMTP_SECURE: $SMTP_SECURE,
+                SMTP_USER: $SMTP_USER,
+                SMTP_PASS: $SMTP_PASS
+              }
+            }' > lambda-env.json
+
+          cat lambda-env.json | jq '.Variables | keys'
+
       - name: Update Lambda environment variables
         run: |
-          cat > lambda-env.json <<EOF
-          {
-            "Variables": {
-              "NODE_ENV": "production",
-              "PORT": "3000",
-              "APP_PORT": "3000",
-              "AWS_LWA_PORT": "3000",
-              "SOMETHING": "${{ secrets.SOMETHING }}"
-            }
-          }
-          EOF
-
           aws lambda update-function-configuration \
             --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
             --environment file://lambda-env.json \
@@ -143,17 +179,42 @@ jobs:
             --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
             --region "${{ env.AWS_REGION }}"
 
-      - name: Create Lambda Function URL if missing
+      - name: Build Function URL CORS file
+        run: |
+          jq -n \
+            --arg origin "${{ secrets.CORS_ORIGINS }}" \
+            '{
+              AllowOrigins: [$origin],
+              AllowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+              AllowHeaders: [
+                "content-type",
+                "authorization",
+                "x-api-key",
+                "x-request-id",
+                "idempotency-key"
+              ],
+              ExposeHeaders: ["x-request-id"],
+              AllowCredentials: true,
+              MaxAge: 86400
+            }' > function-url-cors.json
+
+          cat function-url-cors.json
+
+      - name: Create or update Lambda Function URL
         run: |
           if aws lambda get-function-url-config \
             --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
             --region "${{ env.AWS_REGION }}" > /dev/null 2>&1; then
-            echo "Function URL already exists"
+            aws lambda update-function-url-config \
+              --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+              --auth-type NONE \
+              --cors file://function-url-cors.json \
+              --region "${{ env.AWS_REGION }}"
           else
             aws lambda create-function-url-config \
               --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
               --auth-type NONE \
-              --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","PATCH","DELETE"],AllowHeaders=["content-type","authorization","x-api-key"],AllowCredentials=false' \
+              --cors file://function-url-cors.json \
               --region "${{ env.AWS_REGION }}"
           fi
 
@@ -191,7 +252,7 @@ jobs:
           echo "Lambda Function URL:"
           echo "$FUNCTION_URL"
 
-      - name: Test Lambda endpoint
+      - name: Test Lambda health endpoint
         run: |
           sleep 10
-          curl -i "$FUNCTION_URL" || true
+          curl -i "${FUNCTION_URL}api/health" || true
