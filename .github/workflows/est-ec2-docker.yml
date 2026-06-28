@@ -1,4 +1,4 @@
-name: Test NestJS Docker on EC2
+name: Test Public NestJS Docker on EC2
 
 on:
   push:
@@ -6,26 +6,17 @@ on:
       - main
 
 jobs:
-  test-nest-docker:
+  test-public-nest-docker:
     runs-on: self-hosted
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Debug checked out repo
+      - name: Check Docker
         run: |
-          echo "Current directory:"
-          pwd
-
-          echo "Root files:"
-          ls -la
-
-          echo "Tracked files from Git:"
-          git ls-files
-
-          echo "Find project files:"
-          find . -maxdepth 4 -type f | sort
+          docker --version
+          docker compose version
 
       - name: Verify ci-docker-test folder exists
         run: |
@@ -33,11 +24,6 @@ jobs:
           test -f ./ci-docker-test/Dockerfile
           test -f ./ci-docker-test/package.json
           test -f ./ci-docker-test/tsconfig.json
-
-      - name: Check Docker
-        run: |
-          docker --version
-          docker compose version
 
       - name: Create production env file from GitHub Secrets
         run: |
@@ -56,18 +42,18 @@ jobs:
         run: |
           docker build -t nest-ci-test ./ci-docker-test
 
-      - name: Run NestJS test container
+      - name: Run NestJS test container publicly on port 80
         run: |
           docker run -d \
             --name nest-ci-test \
             --env-file /tmp/ci-docker-test.env \
-            -p 8088:3000 \
+            -p 80:3000 \
             nest-ci-test
 
-      - name: Test NestJS endpoint inside EC2
+      - name: Test from inside EC2
         run: |
           sleep 5
-          curl -f http://localhost:8088/
+          curl -f http://localhost/
 
       - name: Show container logs
         if: always()
