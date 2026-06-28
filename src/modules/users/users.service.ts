@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersRepository } from './users.repository.js';
 
+type AuthUser = {
+  userUuid: string;
+  role: string;
+};
+
 @Injectable()
 class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
@@ -14,6 +19,17 @@ class UsersService {
 
     return {
       user,
+    };
+  }
+
+  async findAssignableUsers(params: {
+    search?: string;
+    currentUserUuid?: string;
+  }) {
+    const users = await this.usersRepository.findAssignableUsers(params);
+
+    return {
+      users,
     };
   }
 }

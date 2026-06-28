@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
 
@@ -40,7 +39,7 @@ export class CreateTaskDto {
   dueDate?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'Assigned user id must be a valid UUID' })
+  @IsString()
   assignedToId?: string;
 }
 
@@ -72,6 +71,6 @@ export class UpdateTaskDto {
   dueDate?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'Assigned user id must be a valid UUID' })
+  @IsString()
   assignedToId?: string;
 }
