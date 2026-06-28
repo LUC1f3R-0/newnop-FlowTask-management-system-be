@@ -1,66 +1,191 @@
-name: Test Public NestJS Docker on EC2
+name: Deploy CI Docker Test to Lambda
 
 on:
   push:
     branches:
       - main
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: flowtask-ci-docker-test-lambda
+  LAMBDA_FUNCTION_NAME: flowtask-ci-docker-test-lambda
+  DOCKERFILE_PATH: ./ci-docker-test/Dockerfile.lambda
+  DOCKER_CONTEXT: ./ci-docker-test
+
 jobs:
-  test-public-nest-docker:
-    runs-on: self-hosted
+  deploy:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Check Docker
+      - name: Verify test project files
         run: |
-          docker --version
-          docker compose version
-
-      - name: Verify ci-docker-test folder exists
-        run: |
+          pwd
+          ls -la
           test -d ./ci-docker-test
-          test -f ./ci-docker-test/Dockerfile
+          test -f ./ci-docker-test/Dockerfile.lambda
           test -f ./ci-docker-test/package.json
           test -f ./ci-docker-test/tsconfig.json
+          find ./ci-docker-test -maxdepth 3 -type f | sort
 
-      - name: Create production env file from GitHub Secrets
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Prepare image variables
         run: |
-          cat > /tmp/ci-docker-test.env <<EOF
-          NODE_ENV=production
-          PORT=3000
-          APP_PORT=3000
-          SOMETHING=${{ secrets.SOMETHING }}
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          IMAGE_TAG="${{ github.sha }}"
+          IMAGE_URI="$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
+
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Create ECR repository if missing
+        run: |
+          aws ecr describe-repositories \
+            --repository-names "${{ env.ECR_REPOSITORY }}" \
+            --region "${{ env.AWS_REGION }}" \
+          || aws ecr create-repository \
+            --repository-name "${{ env.ECR_REPOSITORY }}" \
+            --region "${{ env.AWS_REGION }}"
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region "${{ env.AWS_REGION }}" | \
+          docker login \
+            --username AWS \
+            --password-stdin "$ECR_REGISTRY"
+
+      - name: Build Lambda image
+        run: |
+          docker build \
+            -f "${{ env.DOCKERFILE_PATH }}" \
+            -t "$IMAGE_URI" \
+            "${{ env.DOCKER_CONTEXT }}"
+
+      - name: Push Lambda image to ECR
+        run: |
+          docker push "$IMAGE_URI"
+
+      - name: Create Lambda function if missing
+        run: |
+          if aws lambda get-function \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ env.AWS_REGION }}" > /dev/null 2>&1; then
+            echo "Lambda function already exists"
+          else
+            aws lambda create-function \
+              --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+              --package-type Image \
+              --code ImageUri="$IMAGE_URI" \
+              --role "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" \
+              --timeout 30 \
+              --memory-size 1024 \
+              --region "${{ env.AWS_REGION }}"
+          fi
+
+      - name: Wait for Lambda to become active
+        run: |
+          aws lambda wait function-active \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ env.AWS_REGION }}"
+
+      - name: Update Lambda image
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --image-uri "$IMAGE_URI" \
+            --region "${{ env.AWS_REGION }}"
+
+      - name: Wait for Lambda image update
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ env.AWS_REGION }}"
+
+      - name: Update Lambda environment variables
+        run: |
+          cat > lambda-env.json <<EOF
+          {
+            "Variables": {
+              "NODE_ENV": "production",
+              "PORT": "3000",
+              "APP_PORT": "3000",
+              "AWS_LWA_PORT": "3000",
+              "SOMETHING": "${{ secrets.SOMETHING }}"
+            }
+          }
           EOF
 
-      - name: Stop old test container
-        run: |
-          docker rm -f nest-ci-test || true
+          aws lambda update-function-configuration \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --environment file://lambda-env.json \
+            --region "${{ env.AWS_REGION }}"
 
-      - name: Build NestJS test image
+      - name: Wait for Lambda config update
         run: |
-          docker build -t nest-ci-test ./ci-docker-test
+          aws lambda wait function-updated \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ env.AWS_REGION }}"
 
-      - name: Run NestJS test container publicly on port 80
+      - name: Create Lambda Function URL if missing
         run: |
-          docker run -d \
-            --name nest-ci-test \
-            --env-file /tmp/ci-docker-test.env \
-            -p 80:3000 \
-            nest-ci-test
+          if aws lambda get-function-url-config \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ env.AWS_REGION }}" > /dev/null 2>&1; then
+            echo "Function URL already exists"
+          else
+            aws lambda create-function-url-config \
+              --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+              --auth-type NONE \
+              --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],AllowHeaders=["content-type","authorization","x-api-key"],AllowCredentials=false' \
+              --region "${{ env.AWS_REGION }}"
+          fi
 
-      - name: Test from inside EC2
+      - name: Add public Function URL invoke permission
         run: |
-          sleep 5
-          curl -f http://localhost/
+          aws lambda add-permission \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --statement-id FunctionUrlPublicAccess \
+            --action lambda:InvokeFunctionUrl \
+            --principal "*" \
+            --function-url-auth-type NONE \
+            --region "${{ env.AWS_REGION }}" \
+          || true
 
-      - name: Show container logs
-        if: always()
+      - name: Add public Function invoke permission through URL
         run: |
-          docker logs nest-ci-test || true
+          aws lambda add-permission \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --statement-id FunctionUrlPublicInvokeFunction \
+            --action lambda:InvokeFunction \
+            --principal "*" \
+            --invoked-via-function-url \
+            --region "${{ env.AWS_REGION }}" \
+          || true
 
-      - name: Remove temporary env file
-        if: always()
+      - name: Print Function URL
         run: |
-          rm -f /tmp/ci-docker-test.env
+          FUNCTION_URL=$(aws lambda get-function-url-config \
+            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+            --query FunctionUrl \
+            --output text \
+            --region "${{ env.AWS_REGION }}")
+
+          echo "FUNCTION_URL=$FUNCTION_URL" >> $GITHUB_ENV
+          echo "Lambda Function URL:"
+          echo "$FUNCTION_URL"
+
+      - name: Test Lambda endpoint
+        run: |
+          sleep 10
+          curl -i "$FUNCTION_URL"
