@@ -1,0 +1,48 @@
+name: Test NestJS Docker on EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-nest-docker:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check Docker
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Create production env file
+        run: |
+          cat > ./ci-nest-test/.env.production <<EOF
+          NODE_ENV=production
+          APP_PORT=3005
+          SOMETHING=${{ secrets.SOMETHING }}
+          EOF
+
+      - name: Stop old test container
+        run: |
+          docker rm -f nest-ci-test || true
+
+      - name: Build NestJS test image
+        run: |
+          docker build -t nest-ci-test ./ci-nest-test
+
+      - name: Run NestJS test container
+        run: |
+          docker run -d \
+            --name nest-ci-test \
+            --env-file ./ci-nest-test/.env.production \
+            -p 8088:3000 \
+            nest-ci-test
+
+      - name: Test NestJS endpoint
+        run: |
+          sleep 5
+          curl -f http://localhost:8088/api/health
