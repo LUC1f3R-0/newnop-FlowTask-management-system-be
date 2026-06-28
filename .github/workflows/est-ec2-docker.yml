@@ -78,22 +78,19 @@ jobs:
         run: |
           docker push "$IMAGE_URI"
 
-      - name: Create Lambda function if missing
-        run: |
-          if aws lambda get-function \
-            --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
-            --region "${{ env.AWS_REGION }}" > /dev/null 2>&1; then
-            echo "Lambda function already exists"
-          else
-            aws lambda create-function \
-              --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
-              --package-type Image \
-              --code ImageUri="$IMAGE_URI" \
-              --role "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" \
-              --timeout 30 \
-              --memory-size 1024 \
-              --region "${{ env.AWS_REGION }}"
-          fi
+            - name: Create Lambda Function URL if missing
+              run: |
+                if aws lambda get-function-url-config \
+                  --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+                  --region "${{ env.AWS_REGION }}" > /dev/null 2>&1; then
+                  echo "Function URL already exists"
+                else
+                  aws lambda create-function-url-config \
+                    --function-name "${{ env.LAMBDA_FUNCTION_NAME }}" \
+                    --auth-type NONE \
+                    --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","PATCH","DELETE"],AllowHeaders=["content-type","authorization","x-api-key"],AllowCredentials=false' \
+                    --region "${{ env.AWS_REGION }}"
+                fi
 
       - name: Wait for Lambda to become active
         run: |
