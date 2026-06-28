@@ -22,7 +22,7 @@ ENV PORT=3000
 ENV APP_PORT=3000
 ENV AWS_LWA_PORT=3000
 
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:latest /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 COPY package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
