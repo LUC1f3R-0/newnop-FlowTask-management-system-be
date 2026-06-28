@@ -26,10 +26,10 @@ jobs:
 
       - name: Create production env file from GitHub Secrets
         run: |
-          cat > /tmp/ci-nest-test.env <<EOF
+          cat > /tmp/ci-docker-test.env <<EOF
           NODE_ENV=production
           APP_PORT=3000
-          TEST_MESSAGE=${{ secrets.TEST_MESSAGE }}
+          SOMETHING=${{ secrets.SOMETHING }}
           EOF
 
       - name: Stop old test container
@@ -38,13 +38,13 @@ jobs:
 
       - name: Build NestJS test image
         run: |
-          docker build -t nest-ci-test ./ci-nest-test
+          docker build -t nest-ci-test ./ci-docker-test
 
       - name: Run NestJS test container
         run: |
           docker run -d \
             --name nest-ci-test \
-            --env-file /tmp/ci-nest-test.env \
+            --env-file /tmp/ci-docker-test.env \
             -p 8088:3000 \
             nest-ci-test
 
@@ -61,4 +61,4 @@ jobs:
       - name: Remove temporary env file
         if: always()
         run: |
-          rm -f /tmp/ci-nest-test.env
+          rm -f /tmp/ci-docker-test.env
