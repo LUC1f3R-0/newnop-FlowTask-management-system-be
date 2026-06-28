@@ -12,7 +12,10 @@ export class SmtpStatusService {
       await Promise.race([
         this.smtpService.verifyConnection(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('SMTP health check timeout')), 1500),
+          setTimeout(
+            () => reject(new Error('SMTP health check timeout')),
+            1500,
+          ),
         ),
       ]);
 

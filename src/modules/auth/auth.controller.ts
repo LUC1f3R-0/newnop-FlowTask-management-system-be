@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import {
   LoginDto,
   RegisterDto,
@@ -98,47 +98,75 @@ export class AuthController {
   ) {
     this.setAccessTokenCookie(response, tokens.accessToken);
 
-    const isProduction =
-      this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
-
-    response.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      expires: tokens.refreshTokenExpiresAt,
-      path: '/api/v1/auth',
-    });
+    response.cookie(
+      'refreshToken',
+      tokens.refreshToken,
+      this.getCookieOptions({
+        path: '/api/v1/auth',
+        expires: tokens.refreshTokenExpiresAt,
+      }),
+    );
   }
 
   private setAccessTokenCookie(response: Response, accessToken: string) {
-    const isProduction =
-      this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
-
-    response.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
+    response.cookie(
+      'accessToken',
+      accessToken,
+      this.getCookieOptions({
+        path: '/',
+        maxAge: 15 * 60 * 1000,
+      }),
+    );
   }
 
   private clearAuthCookies(response: Response) {
-    const isProduction =
-      this.configService.getOrThrow<string>('app.nodeEnv') === 'production';
+    response.clearCookie(
+      'accessToken',
+      this.getClearCookieOptions({
+        path: '/',
+      }),
+    );
 
-    response.clearCookie('accessToken', {
+    response.clearCookie(
+      'refreshToken',
+      this.getClearCookieOptions({
+        path: '/api/v1/auth',
+      }),
+    );
+  }
+
+  private getCookieOptions(options: {
+    path: string;
+    maxAge?: number;
+    expires?: Date;
+  }): CookieOptions {
+    const isProduction = this.isProduction();
+
+    return {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
-      path: '/',
-    });
+      sameSite: isProduction ? 'none' : 'lax',
 
-    response.clearCookie('refreshToken', {
+      path: options.path,
+      ...(options.maxAge ? { maxAge: options.maxAge } : {}),
+      ...(options.expires ? { expires: options.expires } : {}),
+    };
+  }
+
+  private getClearCookieOptions(options: { path: string }): CookieOptions {
+    const isProduction = this.isProduction();
+
+    return {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
-      path: '/api/v1/auth',
-    });
+      sameSite: isProduction ? 'none' : 'lax',
+      path: options.path,
+    };
+  }
+
+  private isProduction() {
+    return (
+      this.configService.getOrThrow<string>('app.nodeEnv') === 'production'
+    );
   }
 }
