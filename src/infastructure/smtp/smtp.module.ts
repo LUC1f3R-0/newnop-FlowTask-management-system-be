@@ -4,6 +4,6 @@ import { SmtpStatusService } from './smtp-status.service.js';
 
 @Module({
   providers: [SmtpService, SmtpStatusService],
-  exports: [SmtpService],
+  exports: [SmtpService, SmtpStatusService],
 })
 export class SmtpModule {}

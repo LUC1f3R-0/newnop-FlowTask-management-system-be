@@ -6,6 +6,6 @@ import { DatabaseStatusService } from './database-status.service.js';
 @Module({
   imports: [ConfigModule],
   providers: [PrismaService, DatabaseStatusService],
-  exports: [PrismaService],
+  exports: [PrismaService, DatabaseStatusService],
 })
 export class DatabaseModule {}
