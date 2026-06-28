@@ -10,7 +10,7 @@ env:
   ECR_REPOSITORY: flowtask-ci-docker-test-lambda
   LAMBDA_FUNCTION_NAME: flowtask-ci-docker-test-lambda
   DOCKERFILE_PATH: ./ci-docker-test/Dockerfile.lambda
-  DOCKER_CONTEXT: ./ci-docker-test
+  BUILD_CONTEXT: ./ci-docker-test
 
 jobs:
   deploy:
@@ -24,11 +24,13 @@ jobs:
         run: |
           pwd
           ls -la
+          echo "Files inside ci-docker-test:"
+          find ./ci-docker-test -maxdepth 3 -type f | sort
+
           test -d ./ci-docker-test
           test -f ./ci-docker-test/Dockerfile.lambda
           test -f ./ci-docker-test/package.json
           test -f ./ci-docker-test/tsconfig.json
-          find ./ci-docker-test -maxdepth 3 -type f | sort
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -70,7 +72,7 @@ jobs:
           docker build \
             -f "${{ env.DOCKERFILE_PATH }}" \
             -t "$IMAGE_URI" \
-            "${{ env.DOCKER_CONTEXT }}"
+            "${{ env.BUILD_CONTEXT }}"
 
       - name: Push Lambda image to ECR
         run: |
