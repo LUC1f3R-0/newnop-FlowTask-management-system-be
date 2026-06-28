@@ -18,13 +18,9 @@ jobs:
           docker --version
           docker compose version
 
-      - name: Create production env file
+      - name: Check local EC2 env file exists
         run: |
-          cat > ./ci-nest-test/.env.production <<EOF
-          NODE_ENV=production
-          APP_PORT=3005
-          SOMETHING=${{ secrets.SOMETHING }}
-          EOF
+          test -f /home/ubuntu/app-envs/ci-nest-test.env
 
       - name: Stop old test container
         run: |
@@ -38,7 +34,7 @@ jobs:
         run: |
           docker run -d \
             --name nest-ci-test \
-            --env-file ./ci-nest-test/.env.production \
+            --env-file /home/ubuntu/app-envs/ci-nest-test.env \
             -p 8088:3000 \
             nest-ci-test
 
