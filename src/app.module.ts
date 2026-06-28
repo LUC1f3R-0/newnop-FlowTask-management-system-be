@@ -18,6 +18,7 @@ import { SerializeInterceptor } from './common/interceptors/serialize.intercepto
 import { UserModule } from './modules/users/users.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { TaskModule } from './modules/tasks/tasks.module.js';
+import { HealthModule } from './modules/healthCheck/health.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TaskModule } from './modules/tasks/tasks.module.js';
         allowUnknown: true,
       },
     }),
+    HealthModule,
     SmtpModule,
     DatabaseModule,
     AuthModule,
