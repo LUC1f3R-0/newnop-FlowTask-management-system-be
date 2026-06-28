@@ -31,7 +31,7 @@ jobs:
           NODE_ENV=production
           PORT=3000
           APP_PORT=3000
-          TEST_MESSAGE=${{ secrets.TEST_MESSAGE }}
+          SOMETHING=${{ secrets.SOMETHING }}
           EOF
 
       - name: Stop old test container
