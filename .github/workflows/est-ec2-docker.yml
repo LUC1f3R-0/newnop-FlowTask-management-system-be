@@ -13,11 +13,26 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Show checked out files
+      - name: Debug checked out repo
         run: |
+          echo "Current directory:"
           pwd
+
+          echo "Root files:"
           ls -la
-          find . -maxdepth 3 -type f
+
+          echo "Tracked files from Git:"
+          git ls-files
+
+          echo "Find project files:"
+          find . -maxdepth 4 -type f | sort
+
+      - name: Verify ci-docker-test folder exists
+        run: |
+          test -d ./ci-docker-test
+          test -f ./ci-docker-test/Dockerfile
+          test -f ./ci-docker-test/package.json
+          test -f ./ci-docker-test/tsconfig.json
 
       - name: Check Docker
         run: |
@@ -29,7 +44,7 @@ jobs:
           cat > /tmp/ci-docker-test.env <<EOF
           NODE_ENV=production
           APP_PORT=3000
-          SOMETHING=${{ secrets.SOMETHING }}
+          TEST_MESSAGE=${{ secrets.TEST_MESSAGE }}
           EOF
 
       - name: Stop old test container
@@ -53,7 +68,7 @@ jobs:
           sleep 5
           curl -f http://localhost:8088/api/health
 
-      - name: Show container logs if needed
+      - name: Show container logs
         if: always()
         run: |
           docker logs nest-ci-test || true
