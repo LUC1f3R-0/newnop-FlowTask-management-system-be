@@ -13,14 +13,24 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Show checked out files
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3 -type f
+
       - name: Check Docker
         run: |
           docker --version
           docker compose version
 
-      - name: Check local EC2 env file exists
+      - name: Create production env file from GitHub Secrets
         run: |
-          test -f /home/ubuntu/app-envs/ci-nest-test.env
+          cat > /tmp/ci-nest-test.env <<EOF
+          NODE_ENV=production
+          APP_PORT=3000
+          TEST_MESSAGE=${{ secrets.TEST_MESSAGE }}
+          EOF
 
       - name: Stop old test container
         run: |
@@ -34,11 +44,21 @@ jobs:
         run: |
           docker run -d \
             --name nest-ci-test \
-            --env-file /home/ubuntu/app-envs/ci-nest-test.env \
+            --env-file /tmp/ci-nest-test.env \
             -p 8088:3000 \
             nest-ci-test
 
-      - name: Test NestJS endpoint
+      - name: Test NestJS health endpoint
         run: |
           sleep 5
           curl -f http://localhost:8088/api/health
+
+      - name: Show container logs if needed
+        if: always()
+        run: |
+          docker logs nest-ci-test || true
+
+      - name: Remove temporary env file
+        if: always()
+        run: |
+          rm -f /tmp/ci-nest-test.env
