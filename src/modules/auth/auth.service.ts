@@ -10,6 +10,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthRepository } from './auth.repository.js';
@@ -50,6 +51,8 @@ type AccessTokenPayload = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly jwtService: JwtService,
@@ -112,7 +115,7 @@ export class AuthService {
       });
     }
 
-    await this.smtpService.sendVerificationOtp({
+    await this.safeSendVerificationOtp({
       to: email,
       otp,
     });
@@ -347,7 +350,7 @@ export class AuthService {
       otpExpiresAt,
     });
 
-    await this.smtpService.sendVerificationOtp({
+    await this.safeSendVerificationOtp({
       to: email,
       otp,
     });
@@ -489,9 +492,28 @@ export class AuthService {
       otpExpiresAt,
     });
 
-    await this.smtpService.sendVerificationOtp({
+    await this.safeSendVerificationOtp({
       to: email,
       otp,
     });
   }
+  private async safeSendVerificationOtp(options: { to: string; otp: string }) {
+    try {
+      await this.smtpService.sendVerificationOtp(options);
+
+      return {
+        sent: true,
+        message: 'Verification OTP email sent successfully',
+      };
+    } catch (error) {
+      this.logger.error('Verification OTP email failed to send', error);
+
+      return {
+        sent: false,
+        message:
+          'Verification OTP email could not be sent in this deployment environment',
+      };
+    }
+  }
+
 }
