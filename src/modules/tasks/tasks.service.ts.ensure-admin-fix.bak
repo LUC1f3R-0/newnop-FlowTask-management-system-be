@@ -181,14 +181,6 @@ class TasksService {
     };
   }
 
-
-  private ensureAdmin(authUser: AuthUser) {
-    if (authUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admins can access deleted tasks');
-    }
-  }
-
-
   private parsePositiveInt(value: string | undefined, fallback: number, max: number) {
     const parsed = Number(value ?? fallback);
 

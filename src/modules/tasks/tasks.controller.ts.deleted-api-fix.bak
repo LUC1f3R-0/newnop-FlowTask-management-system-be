@@ -40,15 +40,6 @@ export class TasksController {
     return this.tasksService.findAllForLoggedInUser(request.auth, query);
   }
 
-  @Get('deleted')
-  @ResponseMessage('Deleted tasks fetched successfully')
-  findDeletedTasks(
-    @Req() request: AuthenticatedRequest,
-    @Query() query: TaskListQuery,
-  ) {
-    return this.tasksService.findDeletedForAdmin(request.auth, query);
-  }
-
   @Get(':id')
   @ResponseMessage('Task fetched successfully')
   findOne(
@@ -62,15 +53,6 @@ export class TasksController {
   @ResponseMessage('Task created successfully')
   createTask(@Body() dto: CreateTaskDto, @Req() request: AuthenticatedRequest) {
     return this.tasksService.createTask(request.auth, dto);
-  }
-
-  @Patch(':id/restore')
-  @ResponseMessage('Task restored successfully')
-  restoreTask(
-    @Param('id') taskUuid: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.tasksService.restoreDeletedTask(request.auth, taskUuid);
   }
 
   @Patch(':id')

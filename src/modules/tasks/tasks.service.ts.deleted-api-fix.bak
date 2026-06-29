@@ -1,5 +1,4 @@
-import { BadRequestException,
-  ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   Role,
   TaskPriority,
@@ -55,24 +54,7 @@ class TasksService {
     });
   }
 
-
-  async findDeletedForAdmin(authUser: AuthUser, query: FindTasksQuery) {
-    this.ensureAdmin(authUser);
-
-    const page = this.parsePositiveInt(query.page, 1, 10_000);
-    const limit = this.parsePositiveInt(query.limit, 10, 100);
-
-    return this.tasksRepository.findDeleted({
-      page,
-      limit,
-      status: this.parseTaskStatus(query.status),
-      priority: this.parseTaskPriority(query.priority),
-      search: this.parseSearch(query.search),
-    });
-  }
-
   async findOne(authUser: AuthUser, taskUuid: string) {
-
     const loggedUser = await this.tasksRepository.findUserIdByUuid(
       authUser.userUuid,
     );
@@ -120,7 +102,7 @@ class TasksService {
     );
 
     if (authUser.role === Role.ADMIN) {
-      await this.tasksRepository.findAnyTaskByUuid(taskUuid);
+      await this.tasksRepository.findActiveTaskByUuid(taskUuid);
     } else {
       await this.tasksRepository.findVisibleTaskByUuid({
         uuid: taskUuid,
@@ -146,21 +128,7 @@ class TasksService {
     };
   }
 
-
-  async restoreDeletedTask(authUser: AuthUser, taskUuid: string) {
-    this.ensureAdmin(authUser);
-
-    await this.tasksRepository.findDeletedTaskByUuid(taskUuid);
-
-    const task = await this.tasksRepository.restoreTaskByUuid(taskUuid);
-
-    return {
-      task,
-    };
-  }
-
   async deleteTask(authUser: AuthUser, taskUuid: string) {
-
     const loggedUser = await this.tasksRepository.findUserIdByUuid(
       authUser.userUuid,
     );
@@ -180,14 +148,6 @@ class TasksService {
       task,
     };
   }
-
-
-  private ensureAdmin(authUser: AuthUser) {
-    if (authUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admins can access deleted tasks');
-    }
-  }
-
 
   private parsePositiveInt(value: string | undefined, fallback: number, max: number) {
     const parsed = Number(value ?? fallback);
