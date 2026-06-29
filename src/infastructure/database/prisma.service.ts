@@ -16,17 +16,25 @@ function createMariaDbAdapterConfig(databaseUrl: string, ssl: boolean) {
     throw new Error('DATABASE_URL must include a database name');
   }
 
+  const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
   return {
     host: url.hostname,
     port: url.port ? Number(url.port) : 3306,
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database: decodeURIComponent(database),
-    connectionLimit: 5,
+
+    // Lambda should not keep a large/stale DB pool alive.
+    connectionLimit: isLambda ? 1 : 5,
+    connectTimeout: 10_000,
+    acquireTimeout: 10_000,
+    idleTimeout: isLambda ? 5 : 300,
+
     allowPublicKeyRetrieval: true,
 
     // Required for AWS RDS when require_secure_transport=ON.
-    // For production, use the RDS CA bundle and rejectUnauthorized: true.
+    // Better production version: use the RDS CA bundle with rejectUnauthorized: true.
     ssl: ssl ? { rejectUnauthorized: false } : undefined,
   };
 }
@@ -50,7 +58,11 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
+    // In Lambda, avoid opening a DB connection during cold start.
+    // Let the first real DB query open it.
+    if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      await this.$connect();
+    }
   }
 
   async onModuleDestroy() {
