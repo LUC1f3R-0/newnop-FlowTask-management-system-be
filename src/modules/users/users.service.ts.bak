@@ -1,10 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersRepository } from './users.repository.js';
-import { Role } from '../../../generated/prisma/enums.js';
 
 type AuthUser = {
   userUuid: string;
-  role: Role;
+  role: string;
 };
 
 @Injectable()
@@ -20,20 +19,6 @@ class UsersService {
 
     return {
       user,
-    };
-  }
-
-  async findAllUsers(authUser: AuthUser, search?: string) {
-    if (authUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admins can view all users');
-    }
-
-    const users = await this.usersRepository.findAllUsers({
-      search,
-    });
-
-    return {
-      users,
     };
   }
 

@@ -9,15 +9,6 @@ import type { AuthenticatedRequest } from '../../common/guards/access-token-cook
 class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get()
-  @ResponseMessage('Users fetched successfully')
-  findAllUsers(
-    @Req() request: AuthenticatedRequest,
-    @Query('search') search?: string,
-  ) {
-    return this.usersService.findAllUsers(request.auth, search);
-  }
-
   @Get('me')
   @ResponseMessage('User retrieved successfully')
   getMe(@Req() request: AuthenticatedRequest) {

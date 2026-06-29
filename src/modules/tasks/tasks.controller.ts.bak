@@ -18,14 +18,6 @@ import {
 } from '../../common/guards/access-token-cookie.guard.js';
 import { ResponseMessage } from '../../common/decorators/response-message.decorator.js';
 
-type TaskListQuery = {
-  page?: string;
-  limit?: string;
-  status?: string;
-  priority?: string;
-  search?: string;
-};
-
 @Controller('tasks')
 @UseGuards(AccessTokenCookieGuard)
 export class TasksController {
@@ -35,18 +27,9 @@ export class TasksController {
   @ResponseMessage('Tasks fetched successfully')
   findAllForLoggedInUser(
     @Req() request: AuthenticatedRequest,
-    @Query() query: TaskListQuery,
+    @Query() query: { page?: string; limit?: string },
   ) {
     return this.tasksService.findAllForLoggedInUser(request.auth, query);
-  }
-
-  @Get(':id')
-  @ResponseMessage('Task fetched successfully')
-  findOne(
-    @Param('id') taskUuid: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.tasksService.findOne(request.auth, taskUuid);
   }
 
   @Post('create')

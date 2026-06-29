@@ -12,25 +12,24 @@ type AuthUser = {
   role: Role;
 };
 
-type FindTasksQuery = {
-  page?: string;
-  limit?: string;
-  status?: string;
-  priority?: string;
-  search?: string;
-};
-
 @Injectable()
 class TasksService {
   constructor(private readonly tasksRepository: TasksRepository) {}
 
-  async findAllForLoggedInUser(authUser: AuthUser, query: FindTasksQuery) {
-    const page = this.parsePositiveInt(query.page, 1, 10_000);
-    const limit = this.parsePositiveInt(query.limit, 10, 100);
+  async findAllForLoggedInUser(
+    authUser: AuthUser,
+    query: {
+      page?: string;
+      limit?: string;
+      status?: string;
+      priority?: string;
+    },
+  ) {
+    const page = Number(query.page ?? 1);
+    const limit = Number(query.limit ?? 10);
 
     const status = this.parseTaskStatus(query.status);
     const priority = this.parseTaskPriority(query.priority);
-    const search = this.parseSearch(query.search);
 
     if (authUser.role === Role.ADMIN) {
       return this.tasksRepository.findAll({
@@ -38,7 +37,6 @@ class TasksService {
         limit,
         status,
         priority,
-        search,
       });
     }
 
@@ -50,26 +48,31 @@ class TasksService {
       limit,
       status,
       priority,
-      search,
     });
   }
 
-  async findOne(authUser: AuthUser, taskUuid: string) {
-    const loggedUser = await this.tasksRepository.findUserIdByUuid(
-      authUser.userUuid,
-    );
+  private parseTaskStatus(status?: string) {
+    if (!status) return undefined;
 
-    const task =
-      authUser.role === Role.ADMIN
-        ? await this.tasksRepository.findTaskByUuid(taskUuid)
-        : await this.tasksRepository.findVisibleTaskDetailsByUuid({
-            uuid: taskUuid,
-            userId: loggedUser.id,
-          });
+    if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
+      throw new BadRequestException(
+        'Invalid status. Status must be TODO, IN_PROGRESS, or COMPLETED',
+      );
+    }
 
-    return {
-      task,
-    };
+    return status as TaskStatus;
+  }
+
+  private parseTaskPriority(priority?: string) {
+    if (!priority) return undefined;
+
+    if (!Object.values(TaskPriority).includes(priority as TaskPriority)) {
+      throw new BadRequestException(
+        'Invalid priority. Priority must be LOW, MEDIUM, or HIGH',
+      );
+    }
+
+    return priority as TaskPriority;
   }
 
   async createTask(authUser: AuthUser, dto: CreateTaskDto) {
@@ -149,45 +152,11 @@ class TasksService {
     };
   }
 
-  private parsePositiveInt(value: string | undefined, fallback: number, max: number) {
-    const parsed = Number(value ?? fallback);
+  async selectTask() {}
 
-    if (!Number.isInteger(parsed) || parsed < 1) {
-      return fallback;
-    }
+  async assignTask() {}
 
-    return Math.min(parsed, max);
-  }
-
-  private parseSearch(search?: string) {
-    const value = search?.trim();
-
-    return value ? value : undefined;
-  }
-
-  private parseTaskStatus(status?: string) {
-    if (!status) return undefined;
-
-    if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
-      throw new BadRequestException(
-        'Invalid status. Status must be Open, In Progress, or Done',
-      );
-    }
-
-    return status as TaskStatus;
-  }
-
-  private parseTaskPriority(priority?: string) {
-    if (!priority) return undefined;
-
-    if (!Object.values(TaskPriority).includes(priority as TaskPriority)) {
-      throw new BadRequestException(
-        'Invalid priority. Priority must be Low, Medium, or High',
-      );
-    }
-
-    return priority as TaskPriority;
-  }
+  async showUsers() {}
 }
 
 export { TasksService };

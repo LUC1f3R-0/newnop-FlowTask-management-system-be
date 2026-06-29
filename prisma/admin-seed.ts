@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Logger } from '@nestjs/common';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient, Role } from '../generated/prisma/client.js';
+// require('dotenv').config();
 
 class UserSeeder {
   private prisma: PrismaClient;
@@ -9,7 +10,7 @@ class UserSeeder {
 
   constructor() {
     const databaseUrl = process.env.DATABASE_URL;
-
+    console.log(databaseUrl);
     if (!databaseUrl) {
       throw new Error('DATABASE_URL is missing');
     }
