@@ -7,10 +7,16 @@ import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   const corsConfig = app.get(CorsConfig);
   const configService = app.get(ConfigService);
 
-  app.enableCors(corsConfig.options);
+  const isRunningInLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+  if (!isRunningInLambda) {
+    app.enableCors(corsConfig.options);
+  }
+
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
   app.useGlobalPipes(appValidationPipe);
@@ -18,6 +24,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('app.port') ?? 3000;
 
-  await app.listen(port ?? 3000, '0.0.0.0');
+  await app.listen(port, '0.0.0.0');
 }
+
 bootstrap();
