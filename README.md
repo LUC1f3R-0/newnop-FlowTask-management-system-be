@@ -1,6 +1,6 @@
 # FlowTask Backend
 
-**Frontend Repository:** `<link>`
+**Frontend Repository:** `[<link>](https://github.com/LUC1f3R-0/newnop-FlowTask-management-system-fe.git)`
 
 FlowTask Backend is the API service for the FlowTask task management system. It handles authentication, OTP email verification, role-based authorization, task CRUD operations, task assignment, soft delete, admin-only recovery, user management, health checks, and scheduled database cleanup jobs.
 
