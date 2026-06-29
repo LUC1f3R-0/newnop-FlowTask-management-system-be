@@ -56,7 +56,7 @@ The backend is responsible for:
 ### Frontend Repository
 
 ```txt
-<link>
+'[https://github.com/LUC1f3R-0/newnop-FlowTask-management-system-fe.git]'
 ```
 
 ### Backend Base URL
@@ -67,11 +67,6 @@ Local example:
 http://localhost:3000/api/v1
 ```
 
-Production example:
-
-```txt
-https://your-backend-domain.com/api/v1
-```
 
 ---
 
