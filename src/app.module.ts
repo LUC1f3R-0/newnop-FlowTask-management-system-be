@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import {
   apiConfig,
@@ -19,9 +20,11 @@ import { UserModule } from './modules/users/users.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { TaskModule } from './modules/tasks/tasks.module.js';
 import { HealthModule } from './modules/healthCheck/health.module.js';
+import { CleanupModule } from './modules/cleanup/cleanup.module.js';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, dataConfig, smtpConfig, apiConfig],
@@ -32,6 +35,7 @@ import { HealthModule } from './modules/healthCheck/health.module.js';
       },
     }),
     HealthModule,
+    CleanupModule,
     SmtpModule,
     DatabaseModule,
     AuthModule,

@@ -1,5 +1,8 @@
-import { BadRequestException,
-  ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import {
   Role,
   TaskPriority,
@@ -55,7 +58,6 @@ class TasksService {
     });
   }
 
-
   async findDeletedForAdmin(authUser: AuthUser, query: FindTasksQuery) {
     this.ensureAdmin(authUser);
 
@@ -72,7 +74,6 @@ class TasksService {
   }
 
   async findOne(authUser: AuthUser, taskUuid: string) {
-
     const loggedUser = await this.tasksRepository.findUserIdByUuid(
       authUser.userUuid,
     );
@@ -146,7 +147,6 @@ class TasksService {
     };
   }
 
-
   async restoreDeletedTask(authUser: AuthUser, taskUuid: string) {
     this.ensureAdmin(authUser);
 
@@ -160,7 +160,6 @@ class TasksService {
   }
 
   async deleteTask(authUser: AuthUser, taskUuid: string) {
-
     const loggedUser = await this.tasksRepository.findUserIdByUuid(
       authUser.userUuid,
     );
@@ -181,15 +180,17 @@ class TasksService {
     };
   }
 
-
   private ensureAdmin(authUser: AuthUser) {
     if (authUser.role !== Role.ADMIN) {
       throw new ForbiddenException('Only admins can access deleted tasks');
     }
   }
 
-
-  private parsePositiveInt(value: string | undefined, fallback: number, max: number) {
+  private parsePositiveInt(
+    value: string | undefined,
+    fallback: number,
+    max: number,
+  ) {
     const parsed = Number(value ?? fallback);
 
     if (!Number.isInteger(parsed) || parsed < 1) {

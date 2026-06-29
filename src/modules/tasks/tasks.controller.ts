@@ -51,10 +51,7 @@ export class TasksController {
 
   @Get(':id')
   @ResponseMessage('Task fetched successfully')
-  findOne(
-    @Param('id') taskUuid: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  findOne(@Param('id') taskUuid: string, @Req() request: AuthenticatedRequest) {
     return this.tasksService.findOne(request.auth, taskUuid);
   }
 

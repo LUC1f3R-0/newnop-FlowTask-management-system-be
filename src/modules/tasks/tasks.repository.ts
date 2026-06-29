@@ -98,7 +98,6 @@ class TasksRepository {
     };
   }
 
-
   async findDeleted(params: FindTasksParams) {
     const skip = (params.page - 1) * params.limit;
 
@@ -235,7 +234,6 @@ class TasksRepository {
     return this.toTaskResponse(task);
   }
 
-
   async findAnyTaskByUuid(uuid: string) {
     const task = await this.prisma.task.findFirst({
       where: {
@@ -342,7 +340,6 @@ class TasksRepository {
 
     return this.toTaskResponse(task);
   }
-
 
   async restoreTaskByUuid(uuid: string) {
     const task = await this.prisma.task.update({
