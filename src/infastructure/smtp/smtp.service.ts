@@ -31,7 +31,7 @@ export class SmtpService {
     text?: string;
   }) {
     return this.transporter.sendMail({
-      from: this.configService.getOrThrow<string>('smtp.user'),
+      from: this.configService.getOrThrow<string>('smtp.from'),
       to: options.to,
       subject: options.subject,
       html: options.html,

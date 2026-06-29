@@ -143,6 +143,7 @@ jobs:
             --arg SMTP_SECURE "${{ secrets.SMTP_SECURE }}" \
             --arg SMTP_USER "${{ secrets.SMTP_USER }}" \
             --arg SMTP_PASS "${{ secrets.SMTP_PASS }}" \
+            --arg SMTP_FROM "${{ secrets.SMTP_FROM }}" \
             '{
               Variables: {
                 NODE_ENV: $NODE_ENV,
@@ -160,7 +161,8 @@ jobs:
                 SMTP_PORT: $SMTP_PORT,
                 SMTP_SECURE: $SMTP_SECURE,
                 SMTP_USER: $SMTP_USER,
-                SMTP_PASS: $SMTP_PASS
+                SMTP_PASS: $SMTP_PASS,
+                SMTP_FROM: $SMTP_FROM
               }
             }' > lambda-env.json
 

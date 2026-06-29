@@ -20,6 +20,7 @@ const validationSchema = Joi.object({
   SMTP_SECURE: Joi.boolean().truthy('true').falsy('false').default(false),
   SMTP_USER: Joi.string().trim().required(),
   SMTP_PASS: Joi.string().trim().required(),
+  SMTP_FROM: Joi.string().trim().required(),
 
   CORS_ORIGINS: Joi.string()
     .pattern(/^https?:\/\/[^\s,]+(,https?:\/\/[^\s,]+)*$/)
